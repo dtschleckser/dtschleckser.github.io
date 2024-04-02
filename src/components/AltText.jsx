@@ -11,8 +11,8 @@ function AltText({text, alt, link}) {
         </HoverCard.Target>
         <HoverCard.Dropdown>
         <Text size="sm">
-            {alt}
-            {link ? <div><br /><a href={link}>🔗</a></div> : ""}
+            {alt}{' '}
+            {link ? <a href={link}>🔗</a> : ""}
         </Text>
         </HoverCard.Dropdown>
     </HoverCard>
