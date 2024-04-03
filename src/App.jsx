@@ -6,15 +6,20 @@ import ExpandableText from './components/ExpandableText'
 import moeArch from './assets/moe-arch.png'
 import mixtralExpertChoice from './assets/mixtral-expert-choice.png'
 import denseVsMoe from './assets/dense-vs-moe.png'
+import mixtralLayerExperts from './assets/mixtral-layer-experts.png'
 
 import { InlineMath, BlockMath } from 'react-katex';
 
-import { Code, Title } from '@mantine/core';
+import { Code, Title, Divider } from '@mantine/core';
 
 function App() {
 
+  const cvDemo = `CV of [0.09, 0.8, 0.01, 0.1] = 1.63
+CV of [0.25, 0.25, 0.25, 0.25] = 0.0
+CV of [0.2, 0.3, 0.2, 0.3] = 0.04`
+
   return (
-    <div style={{textAlign: 'left', width: '100%', minWidth: '400px'}}>
+    <div style={{textAlign: 'left', width: '100%'}}>
       <Title order={1} style={{paddingBottom: '1rem', paddingTop: '2rem'}}>
         An Introduction to Sparsely Gated MoE
       </Title>
@@ -114,16 +119,27 @@ function App() {
       For a practical example, I'd recommend checking out the <a href="https://github.com/mistralai/mistral-src/blob/main/mistral/model.py#L145">Mixtral reference implementation</a>.
 
       <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
+        Scaling Rules
+      </Title>
+      <div>todo</div>
+
+
+      <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
         How to Train Your Gating Network
       </Title>
 
       Choosing an appropriate architecture and loss to train our gating network is important, as we want
       to ensure that each expert ends up with a roughly even responsibility. We don't want a single expert that
       the gating network always routes to and receives all the data during training; this problem compounds during training,
-      as the router will greatly prefer the expert that has seen more data. In all the below cases, our gating network
+      as the router will greatly prefer the expert that has seen more data.
+      <br /><br />
+      In the below cases, our gating network
       is trained via backprop like the rest of the network, but there are some cases where the gating network isn't trained
       that way (e.g. <a href="https://arxiv.org/pdf/2106.04426.pdf">hash layers</a>). 
 
+      <Title order={3} style={{ paddingTop: '2rem' }}>
+        Gating methods
+      </Title>
       <ExpandableText headerText="Softmax routing">
         A basic routing network that doesn't address this problem may look like a learnable matrix <InlineMath>{'W_g'}</InlineMath> into softmax:
         <div className='centeredMath'>
@@ -136,7 +152,8 @@ function App() {
       <ExpandableText headerText="Noisy Top-K Gating">
         To start addressing the problem of load balancing our experts, we can
         add noise to our pre-softmax gating logits to even out the probability distribution
-        and keep the top K outputs in order to make it sparse.
+        and keep the top K outputs in order to make it sparse. The noise will be leveraged to a greater
+        extent in the load balancing loss we'll describe later.
         <br /><br />
         First, the noise is added; it's scaled with a learnable matrix <InlineMath>{'W_\{noise\}'}</InlineMath>{' '}
         so that the amount of noise we add is appropriate for our given input:
@@ -146,7 +163,7 @@ function App() {
         StandardNormal is just the standard normal distribution and Softplus is used to keep the outputs positive.
         We add the noise to the outputs of our gating network
         <div className='centeredMath'>
-          <InlineMath>{'H(x) = (x \\cdot W_g) + Noise(x)'}</InlineMath>
+          <InlineMath>{'H(x)_i = (x \\cdot W_g)_i + Noise(x)'}</InlineMath>
         </div>
         After this, we can "KeepTopK" (simply keeping the greatest K values of x unmodified, with the rest set to -infinity).
         Then, we softmax the output of KeepTopK to get our selection of top K experts:
@@ -155,10 +172,14 @@ function App() {
         </div>
       </ExpandableText>
 
+      <Title order={3} style={{ paddingTop: '1rem' }}>
+        Losses
+      </Title>
+
       <ExpandableText headerText="Importance Loss + Load Balancing Loss">
-        Separately, Shazeer et al. add an auxiliary loss <InlineMath>{'L_{importance}'}</InlineMath>
-        that's defined over a batch of data. They take the "importance value" of an expert, which is the sum
-        of the values of the gating network in that batch:
+        Separately, Shazeer et al. add an auxiliary loss <InlineMath>{'L_{importance}'}</InlineMath> that's
+        defined over a batch of data. They take the "importance value" of an expert, which is the sum
+        of the values of the gating network (i.e. post-softmax) in that batch:
         <div className='centeredMath'>
           <BlockMath>{'Importance(X) = \\sum_{x \\in X} G(x)'}</BlockMath>
         </div>
@@ -168,22 +189,45 @@ function App() {
         <div className='centeredMath'>
           <BlockMath>{'L_{importance}(X) = w_{importance} \\cdot CV(Importance(X))^2'}</BlockMath>
         </div>
+
+        The coefficient of variation punishes an uneven distribution and rewards an even one:
+        <center>
+          <Code block style={{ width: 'fit-content', textAlign: 'start', marginTop: '1rem', marginBottom: '1rem' }}>{cvDemo}</Code>
+        </center>
+        As it's an auxiliary loss, this is added to the standard loss for the network.
+        <Divider size="md" style={{ marginTop: '1rem', marginBottom: '1rem'}}/>
         They also introduce a load balancing loss. It uses an estimator <InlineMath>{'Load(x)_i'}</InlineMath>, that
-        is defined with data batch <InlineMath>{'X'}</InlineMath> for a single expert <InlineMath>{'i'}</InlineMath>:
+        is defined with data batch <InlineMath>{'X'}</InlineMath> for a single expert <InlineMath>{'i'}</InlineMath> and
+        a probability <InlineMath>{'P(x, i)'}</InlineMath>:
         <div className='centeredMath'>
           <BlockMath>{'Load(X)_i = \\sum_{x \\in X} P(x, i)'}</BlockMath>
         </div>
-        The exact definition for <InlineMath>{'P(x, i)'}</InlineMath> is ommitted here due to its verbosity, but the concept behind
-        it is to use the probability that the gating function <InlineMath>{'G(x)_i'}</InlineMath> is non-zero for an expert i,
-        given that we freeze the noise values for other experts. Keep in mind that our expert noise is determined by a
-        learned scaling of a normal distribution, as defined in noisy top-k gating - we want to see if, after this noise, our
-        expert <InlineMath>{'i'}</InlineMath> makes the cut for the top <InlineMath>{'k'}</InlineMath> experts.
+        The exact definition for <InlineMath>{'P(x, i)'}</InlineMath> is fairly lengthy, but it's defined in terms that
+        we've seen before. 
+        <div className='centeredMath'>
+          <BlockMath>{'P(x, i) = Pr((x \\cdot W_g)_i + StandardNormal() \\cdot Softplus((x \\cdot W_{noise})_i) > kth\\_excluding(H(x), k, i))'}</BlockMath>
+        </div>
+        You may recognize the term <InlineMath>{'(x \\cdot W_g)_i + StandardNormal() \\cdot Softplus((x \\cdot W_{noise})_i)'}</InlineMath> as{' '}
+        <InlineMath>{'H(x)'}</InlineMath>, the noised outputs from our gating network, from the noisy top K gating function above. 
         <br /><br />
-        Once we have our load function defined, we can add the squared CV of it to the loss, adding a
-        hyperparameter <InlineMath>{'w_{load}'}</InlineMath>, very similarly to our importance loss:
+        The concept behind <InlineMath>{'P(x, i)'}</InlineMath> is to calculate the probability that
+        our item <InlineMath>{'i'}</InlineMath> will pass the gating function given a specific expert. 
+        We want it to be a close competition between experts, rather than routing all tokens to a single
+        one, so we check the probability that the noised item going through
+        expert <InlineMath>{'i'}</InlineMath> will make the cut for the top K experts
+        (the probability comes from our scaled StandardNormal).
+        <br /><br />
+        Once we have our load function defined, we can get our final auxiliary loss by calculating 
+        the squared CV, scaled by a hyperparameter <InlineMath>{'w_{load}'}</InlineMath>,
+        very similarly to our importance loss:
+        
         <div className='centeredMath'>
           <BlockMath>{'L_{load}(X) = w_{load} \\cdot  CV(Load(X))^2'}</BlockMath>
         </div>
+        
+        We want <InlineMath>{'Load(X)'}</InlineMath>, our measure of the likelihood that the values
+        of <InlineMath>{'X'}</InlineMath> pass the gate, to be even across all our items in <InlineMath>{'X'}</InlineMath> and
+        across all our experts.
       </ExpandableText>
 
       <ExpandableText headerText="Switch Transformer Load Balancing Loss">
@@ -191,21 +235,21 @@ function App() {
         greatly simplifies the load balancing + importance loss introduced by Shazeer et al. It introduces 
         an auxiliary loss to ensure that the load is balanced across experts. For:
         <ul>
-          <li>Batch <InlineMath>{'\\beta'}</InlineMath></li>
           <li>Tokens <InlineMath>{'T'}</InlineMath> in the batch</li>
-          <li>Experts <InlineMath>{'N'}</InlineMath> in the batch,</li>
+          <li>Quantity of experts <InlineMath>{'N'}</InlineMath>,</li>
+          <li>Scaling hyperparameter <InlineMath>{'\\alpha'}</InlineMath> (defined as <InlineMath>{'10^{-2}'}</InlineMath> in the paper),</li>
         </ul>
         the auxiliary loss is defined by 
         <BlockMath>{'loss = \\alpha \\cdot N \\cdot \\sum_{i=1}^{N} f_i \\cdot P_i '}</BlockMath>
         where: <br />
-        <InlineMath>{'f_i'}</InlineMath> is the fraction of tokens that get routed to expert i in the batch <InlineMath>{'\\beta'}</InlineMath>, and <br />
-        <InlineMath>{'P_i'}</InlineMath> is the fraction of all router probability dedicated to expert i for all tokens in the batch <InlineMath>{'\\beta'}</InlineMath>.
+        <InlineMath>{'f_i'}</InlineMath> is the fraction of tokens that get routed to expert <InlineMath>{'i'}</InlineMath> in the batch <InlineMath>{'\\beta'}</InlineMath>, and <br />
+        <InlineMath>{'P_i'}</InlineMath> is the fraction of all router probability dedicated to expert <InlineMath>{'i'}</InlineMath> for all tokens in the batch <InlineMath>{'\\beta'}</InlineMath>.
         <br /> <br />
         Essentially, we want the router to have the token quantity and the routing probability to be even across all our experts.
 
       </ExpandableText>
 
-      <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
+      <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '2rem' }}>
         Open source MoE LLMs
       </Title>
 
@@ -223,20 +267,28 @@ function App() {
         has <Code>top_k_experts = 2</Code> and <Code>n_experts = 8</Code>.
       </div>
       <h2>What do the experts do?</h2>
-      Right now, it doesn't look like experts correspond cleanly to a single human-interpretable topic.
-      They seem to focus more on token-level features: The below example, taken from the <a href="https://arxiv.org/pdf/2401.04088.pdf">Mixtral paper</a>,
-      shows tokens such as commas and operators in Python being handled by one expert, while whitespace is handled by another.
+      At least in Mixtral's case, it doesn't look like experts correspond cleanly to a single human-interpretable topic.
+      If I had to guess, I'd probably say this is the case for other MoE LLMs too.
+      They seem to focus more on token-level features: The <a href="https://arxiv.org/pdf/2401.04088.pdf">Mixtral paper</a> shows
+      that tokens such as commas and operators in Python are handled by one expert,
+      while whitespace is handled by another (and this is roughly true throughout all layers).
 
+      <br />
+      <br />
+      {/* <img src={ mixtralExpertChoice } style={{ width: 'inherit', paddingTop: '1rem', paddingBottom: '1rem' }}/> */}
 
-      <img src={mixtralExpertChoice} style={{ width: 'inherit', paddingTop: '1rem', paddingBottom: '1rem' }}/>
+      We can also check what experts Mixtral chooses for different datasets covering domains like math, code, and science.
+      They find that each expert covers a roughly similar amount of tokens from the documents in that domain (also from the Mixtral paper):
 
-      {
-      // Mixtral of experts:
-      // https://arxiv.org/abs/2401.04088
+      <img src={ mixtralLayerExperts } style={{ width: 'inherit', paddingTop: '1rem', paddingBottom: '1rem' }}/>
 
-      // Sparsely gated MoE transformers:
-      // https://arxiv.org/pdf/1701.06538.pdf
-      }
+      <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '2rem' }}>
+        Conclusion
+      </Title>
+      <div>
+        Mixture of expert architectures are a powerful tool that have gained prominence, particularly in large models. 
+
+      </div>
       <br /><br />
     </div>
   )
