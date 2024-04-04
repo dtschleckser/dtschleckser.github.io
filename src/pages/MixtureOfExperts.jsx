@@ -4,12 +4,13 @@ import ExpandableText from '../components/ExpandableText'
 import moeArch from '../assets/moe-arch.png'
 import denseVsMoe from '../assets/dense-vs-moe.png'
 import mixtralLayerExperts from '../assets/mixtral-layer-experts.png'
+import routerScalingLoss from '../assets/router-scaling-loss.png'
 
 import moeHeaderArt from '../assets/blog-headers/moe-gradient.png'
 
 import { InlineMath, BlockMath } from 'react-katex';
 
-import { Code, Title, Divider } from '@mantine/core';
+import { Code, Title, Divider, Text } from '@mantine/core';
 
 import { FaArrowLeft } from "react-icons/fa6";
 import { Link } from 'react-router-dom'
@@ -28,9 +29,12 @@ function MixtureOfExperts() {
           <h3>Back</h3>
         </Link>
 
-        <Title order={1} style={{ paddingBottom: '1rem' }}>
+        <Title order={1}>
           An Introduction to Sparsely Gated MoE
         </Title>
+        <Text c="dimmed" size="lg" style={{ paddingBottom: '1rem' }}>
+          April 4, 2024
+        </Text>
         <center>
           <img src={moeHeaderArt} style={{ width: '70%', marginTop: '1rem',  marginBottom: '1rem' }} className='dropShadowImage' />
         </center>
@@ -43,8 +47,7 @@ function MixtureOfExperts() {
           likely GPT-4." link="https://youtu.be/Y2F8yisiS6E?t=1193" /> and
           {' '}<a href="https://huggingface.co/mistralai/Mixtral-8x7B-v0.1">Mixtral-8x7b</a>{' '}
           enjoying both high performance and fast inference relative to their total parameter count.
-          So what does a "mixture of experts" do? How does it work and why would we want to use it? Hopefully, we'll
-          make it to the end of this post clarifying all of that.
+          So what does a "mixture of experts" do? How does it work and why would we want to use it?
         </div>
   
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
@@ -55,48 +58,54 @@ function MixtureOfExperts() {
           {' '}<a href="https://arxiv.org/pdf/2001.08361.pdf">Neural scaling laws</a>{' '}
           show us that we can significantly improve the performance of an LLM by scaling out, adding more and larger layers.
           However, it comes at a clear cost. The more parameters you have, the compute you need for both training and inference.
-          We know that a neural network has parameters that are strongly activated by a particular input:
-          What if we could only use the ones that are most relevant to our particular input? This is the
-          observation and motivation behind sparsity in networks.
+          What if we could keep a significantly greater number of parameters and only use the ones that
+          are most relevant to our particular input? This is the observation and motivation behind sparsity in networks.
         </div>
         <br />
         <div>
-        Sparsity allows us to selectively activate and compute only a subset of the model's parameters for each input,
-        reducing the computational cost and memory footprint during inference. By leveraging sparsity, we can build
-        larger models with more parameters while keeping the actual computation and memory usage manageable.
+          Sparsity allows us to selectively activate and compute only a subset of the model's parameters for each input,
+          reducing the computational cost and memory footprint during inference. By leveraging sparsity, we can build
+          larger models with more parameters while keeping the actual computation and memory usage manageable.
         </div>
         <br />
         <div>
-        Recent advancements in hardware have made sparsity even more appealing. Modern GPUs and specialized AI accelerators,
-        such as NVIDIA's <a href="https://developer.nvidia.com/blog/nvidia-ampere-architecture-in-depth/" target="_blank">Ampere architecture</a>,
-        offer native support for sparse operations.
+        <div>
+          The basic concept behind MoE has been around for a while, but a prominent recent example is
+          {' '}<a href="https://arxiv.org/pdf/1701.06538.pdf">The Sparsely-Gated Mixture of Experts Layer</a>.
+          In this paper, the authors introduce the concept of an MoE layer in the context of RNNs - let's
+          see what the architecture looks like.
         </div>
-  
-  
+        
+        </div>
+
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
           The Mixture of Experts Layer
         </Title>
         <div>
-          The basic concept behind MoE has been around for a while, but a prominent example of its recent application is
-          {' '}<a href="https://arxiv.org/pdf/1701.06538.pdf">The Sparsely-Gated Mixture of Experts Layer</a>.
-          The authors introduce the concept of an MoE layer in the context of RNNs.
-        </div>
-        <br />
-        <div>
-          The MoE layer routes the input to a given number of
-          "expert" networks, with each expert in Shazeer et al. being a 2-layer FFN with input of size 1024, output of size 512,
-          and a ReLU activation function. Each of these experts gives their own unique answer, and we can choose how many experts we want to use
-          (a hyperparameter usually called <Code>top_k_experts</Code>). We express the list of experts we're using as{' '}
+          Instead of passing our input through a standard dense feedforward network, the MoE layer routes the input to a given number of
+          "expert" networks. We express the list of experts we're using as{' '}
           <InlineMath>{'\\{E_0, E_1, \\ldots, E_{n-1}\\}'}</InlineMath> when we have <InlineMath>n</InlineMath> total experts.
-          <br />
-          <br />
-          Since we aren't using every parameter in every forward pass, we call the parameters that are actively being used "active parameters"
-          and the total parameter count ("total" or "sparse" parameter count). 
-          <br />
-          <br />
+
+
+          <br /><br />
+
+          Each expert (in the above paper) is a 2-layer FFN with input of size 1024, output of size 512,
+          and a ReLU activation function. Each of these experts gives their own unique output, and we can choose how many experts we want to use
+          in each forward pass by sending our input out to each of them, and then summing their output afterwards. The quantity of experts we use
+          is a hyperparameter usually called <Code>top_k_experts</Code>. 
+          <br /><br />
+
+          Since we only use a subset of our experts for a single item / forward pass, not all of our parameters are going to be "active". As such,
+          we call the parameters that are actively being used "active parameters", and the total parameters in the model,
+          including those that aren't used for a given forward pass, the "total" or "sparse" parameter count. Depending on our expert count
+          and <Code>top_k_expert</Code> configuration, these can be significantly different numbers. In a traditional dense network,
+          they'd be the same, as all the parameters are used for every forward pass. 
+
+          <br /><br />
+
           To choose the experts we think will be best, we use a gating network - we'll call it <InlineMath>G(x)</InlineMath>.
-          There are various ways of defining how <InlineMath>G(x)</InlineMath> will actually work, but for now we can assume
-          it will black-box select the set of experts that are best to handle our input.
+          There are various ways of defining how <InlineMath>G(x)</InlineMath> will actually work that we'll elaborate on later in this post,
+          but for now we can assume it will black-box select the set of experts that are best to handle our input.
         </div>
         <br />
         To use our gating network to select experts, we'll use the formula:
@@ -116,8 +125,8 @@ function MixtureOfExperts() {
   
         We can see our input <InlineMath>x</InlineMath> is being passed through a gating network and two experts are selected;
         they're being multiplied by the gating values <InlineMath>{'G(x)_2'}</InlineMath> and <InlineMath>{'G(x)_\{n-1\}'}</InlineMath> 
-        (intuitively corresponding to the gating network's confidence in this expert). This also makes the gating network differentiable.
-        Then, they're all summed and that's the output of the MoE layer!
+        (intuitively, the gating values correspond to the importance of those experts to the output).
+        This also makes the gating network differentiable. Then, they're all summed and that's the output of the MoE layer!
   
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
           Modifications for Transformers
@@ -125,27 +134,15 @@ function MixtureOfExperts() {
         In a Transformer model, we're dealing with transformer blocks that consist of a self-attention block and a FFN.
         When applying MoE to Transformers, we replace the standard single FFN in a Transformer block with a mixture of experts mechanism that has multiple expert FFNs.
         Similarly to the RNN case, we select the most appropriate one with a gating mechanism.
+        
         <img src={denseVsMoe} style={{ width: 'inherit', paddingTop: '1rem', paddingBottom: '1rem' }}/>
+        
         This figure is taken from <a href="https://arxiv.org/pdf/2209.01667.pdf">A Review of Sparse Expert Models in Deep Learning</a>.
-        For a practical example, I'd recommend checking out the <a href="https://github.com/mistralai/mistral-src/blob/main/mistral/model.py#L145">Mixtral reference implementation</a>.
-  
-        <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
-          Scaling Laws
-        </Title>
-        <div>
-          We can get a reasonably good idea of how a transformer model will perform on a given set of data
-          if we have a known parameter count and quantity of compute. How does it apply to MoE models? The
-          paper "<a href="https://arxiv.org/pdf/2202.01169.pdf">Unified Scaling Laws for Routed Language Models"</a>
-          defines scaling laws that show that we can expect performance to improve when we scale our expert count
-          (and therefore total parameter count) up.
-          <br />
-        {/*"https://arxiv.org/pdf/2202.01169.pdf"*/}
-        <ExpandableText headerText="Softmax routing">
-
-        </ExpandableText>
-  
-        </div>
-  
+        
+        <br />
+        
+        For a practical example of MoE transformer implementation, I'd recommend
+        checking out the <a href="https://github.com/mistralai/mistral-src/blob/main/mistral/model.py#L145">Mixtral reference implementation</a>.
   
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
           How to Train Your Gating Network
@@ -271,6 +268,27 @@ function MixtureOfExperts() {
           Essentially, we want the router to have the token quantity and the routing probability to be even across all our experts.
   
         </ExpandableText>
+
+        <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '3rem' }}>
+          Scaling Laws
+        </Title>
+        <div>
+          We can get a reasonably good idea of how a transformer model will perform on a given set of data
+          if we have a known parameter count and quantity of compute. How does it apply to MoE models? The
+          paper "<a href="https://arxiv.org/pdf/2202.01169.pdf">Unified Scaling Laws for Routed Language Models"</a>
+          seeks to define scaling laws that show how we can expect performance to improve when we scale our expert count
+          (and therefore total parameter count) up.
+          <br />
+          { /* https://arxiv.org/pdf/2202.01169.pdf */ }
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0 2rem 0'}}>
+            <img src={ routerScalingLoss } style={{ maxWidth: '500px' }} />
+          </div>
+          Each point on an individual curve on the above graph is a model configuration that is equally performant
+          when compared to another point on the same curve (as measured by loss).
+          We can see that, for example, a 32-expert 5M param model is roughly similar in performance to a dense (i.e. one-expert)
+          25M model. We also see diminishing performance when scaling to large quantities of experts
+          (even with the exponential expert count axis).
+        </div>
   
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '2rem' }}>
           Open source MoE LLMs
@@ -284,12 +302,16 @@ function MixtureOfExperts() {
           offloading experts wouldn't be efficient.
           <br />
           <br />
-          The number of experts can vary greatly in open MoE LLMs. For example, the
+          The number of experts can vary greatly in open MoE LLMs. The
           largest Switch Transformer model <a href="https://huggingface.co/google/switch-c-2048">switch-c-2048</a> has 2048 experts,
           resulting in a model with over a trillion active parameters. In comparison, Mixtral
-          has <Code>top_k_experts = 2</Code> and <Code>n_experts = 8</Code>.
+          has <Code>top_k_experts = 2</Code> and <Code>n_experts = 8</Code>. Recent releases are closer to the Mixtral expert count - {' '}
+          <a href="https://github.com/xai-org/grok-1">Grok-1</a> has 8 experts with 2 active
+          and <a href="https://www.databricks.com/blog/introducing-dbrx-new-state-art-open-llm">DBRX</a> has 16 with 4 active.  
         </div>
+
         <h2>What do the experts do?</h2>
+
         At least in the case of <a href="https://arxiv.org/pdf/2202.08906.pdf">ST-MoE</a> (section 7.3) and Mixtral,
         it doesn't look like experts correspond cleanly to a single human-interpretable topic.
         They seem to focus more on token-level features: The <a href="https://arxiv.org/pdf/2401.04088.pdf">Mixtral paper</a> shows
@@ -302,20 +324,29 @@ function MixtureOfExperts() {
         We can also check what experts Mixtral chooses for different datasets covering domains like math, code, and science.
         They find that each expert covers a roughly similar amount of tokens from the documents in that domain (also from the Mixtral paper):
   
-        <img src={ mixtralLayerExperts } style={{ width: 'inherit', paddingTop: '1rem', paddingBottom: '1rem' }}/>
-  
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0 2rem 0'}}>
+          <img src={ mixtralLayerExperts } style={{ width: '100%', maxWidth: '1000px', paddingTop: '1rem', paddingBottom: '1rem' }}/>
+        </div>
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '2rem' }}>
           Conclusion
         </Title>
+  
         <div>
           Mixture of expert architectures are a powerful tool that have gained prominence, particularly in large language models.
-          While MoE architectures enable training larger models, they do come with trade-offs such as increased memory requirements,
-          as all expert parameters need to be loaded even if only a subset is used for a given input.
+          MoE architectures enable training larger models that are able to leverage sparsity in their computation. Despite larger memory
+          requirements for the model's total parameters
           <br />
           <br />
-          By leveraging sparsely activated experts, MoE models can achieve impressive performance while keeping computational costs
-          manageable compared to dense models of similar total parameter counts.
+          By leveraging sparsely activated experts, MoE models can achieve impressive performance while keeping computation costs
+          manageable compared to dense models of similar total parameter counts. In the near future, I expect to see more large
+          MoE releases and additional tricks to exploit sparsity in large models.
         </div>
+
+        <Link to='/' style={{ display: 'flex', marginBottom: '1rem', paddingTop: '2rem', alignItems: 'center' }}>
+          <FaArrowLeft style={{marginRight: '5px', marginTop: '2px'}}/>
+          <h3>Back</h3>
+        </Link>
+
         <br /><br />
       </div>
     )
