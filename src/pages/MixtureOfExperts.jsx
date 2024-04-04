@@ -154,7 +154,7 @@ function MixtureOfExperts() {
         as the router will greatly prefer the expert that has seen more data.
         <br /><br />
         In the below cases, our gating network
-        is trained via backprop like the rest of the network, but there are some cases where the gating network isn't trained
+        is trained via backprop like the rest of the network, but there are some gating networks that aren't trained
         that way (e.g. <a href="https://arxiv.org/pdf/2106.04426.pdf">hash layers</a>). 
   
         <Title order={3} style={{ paddingTop: '2rem' }}>
@@ -281,7 +281,7 @@ function MixtureOfExperts() {
           <br />
           { /* https://arxiv.org/pdf/2202.01169.pdf */ }
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0 2rem 0'}}>
-            <img src={ routerScalingLoss } style={{ maxWidth: '500px' }} />
+            <img src={ routerScalingLoss } style={{ maxWidth: 'calc(min(600px, 100%))' }} />
           </div>
           Each point on an individual curve on the above graph is a model configuration that is equally performant
           when compared to another point on the same curve (as measured by loss).
@@ -325,7 +325,7 @@ function MixtureOfExperts() {
         They find that each expert covers a roughly similar amount of tokens from the documents in that domain (also from the Mixtral paper):
   
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0 2rem 0'}}>
-          <img src={ mixtralLayerExperts } style={{ width: '100%', maxWidth: '1000px', paddingTop: '1rem', paddingBottom: '1rem' }}/>
+          <img src={ mixtralLayerExperts } style={{ maxWidth: 'calc(min(900px, 100%))', paddingTop: '1rem', paddingBottom: '1rem' }}/>
         </div>
         <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '2rem' }}>
           Conclusion
