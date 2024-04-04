@@ -1,5 +1,7 @@
 import React from 'react'
-import ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
 import App from './App.jsx'
 import './index.css'
 
@@ -8,10 +10,24 @@ import { MantineProvider } from "@mantine/core";
 
 import 'katex/dist/katex.min.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+import BlogRoot from './pages/BlogRoot'
+import MixtureOfExperts from './pages/MixtureOfExperts';
+
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <BlogRoot />
+  },
+  {
+    path: "/mixture-of-experts-intro",
+    element: <MixtureOfExperts />,
+  },
+]);
+
+createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <MantineProvider defaultColorScheme="dark">
-      <App />
+      <RouterProvider router={router} />
     </MantineProvider>
   </React.StrictMode>,
 )

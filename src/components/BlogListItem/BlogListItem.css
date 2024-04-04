@@ -1,0 +1,8 @@
+.paperItem {
+    background-color: #212121;
+    transition: all 0.2s ease-in;
+    display: flex;
+}
+.paperItem:hover {
+    background-color: #1d1d1d;
+}

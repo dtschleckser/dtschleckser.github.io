@@ -8,3 +8,7 @@
 body {
   background-color: black;
 }
+
+.dropShadowImage {
+  filter: drop-shadow(8px 8px 10px rgba(0, 0, 10, 0.3))
+}
