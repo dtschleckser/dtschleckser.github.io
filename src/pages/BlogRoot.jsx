@@ -12,6 +12,7 @@ function BlogRoot() {
                     image={moeHeaderArt}
                     title="An Introduction to Sparsely Gated MoE"
                     subtitle="A primer on mixture of experts, sparse routing, related losses + architectures, and recent models"
+                    date="April 4, 2024"
                     href="mixture-of-experts-intro"
                 />
             </li>

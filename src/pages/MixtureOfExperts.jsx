@@ -263,7 +263,7 @@ function MixtureOfExperts() {
           <BlockMath>{'loss = \\alpha \\cdot N \\cdot \\sum_{i=1}^{N} f_i \\cdot P_i '}</BlockMath>
           where: <br />
           <InlineMath>{'f_i'}</InlineMath> is the fraction of tokens that get routed to expert <InlineMath>{'i'}</InlineMath> in the batch <InlineMath>{'\\beta'}</InlineMath>, and <br />
-          <InlineMath>{'P_i'}</InlineMath> is the fraction of all router probability dedicated to expert <InlineMath>{'i'}</InlineMath> for all tokens in the batch <InlineMath>{'\\beta'}</InlineMath>.
+          <InlineMath>{'P_i'}</InlineMath> is the fraction of the router's output across the all tokens in the batch <InlineMath>{'\\beta'}</InlineMath> that goes to expert <InlineMath>{'i'}</InlineMath>.
           <br /> <br />
           Essentially, we want the router to have the token quantity and the routing probability to be even across all our experts.
   
