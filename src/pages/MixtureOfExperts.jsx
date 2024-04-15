@@ -364,8 +364,8 @@ function MixtureOfExperts() {
               <ul>
                 <li>
                   You can do more with sparsity and routing networks than just MoE. {' '}
-                  <a href="https://arxiv.org/pdf/2404.04900.pdf">Radial networks</a> (invoking only a subset of layers for each token) and 
-                  <a href="https://arxiv.org/pdf/2404.02258.pdf">Mixture-of-Depths Transformer (optionally skipping a layer)</a> are both
+                  <a href="https://arxiv.org/pdf/2404.04900.pdf">Radial networks</a> (invoking only a subset of layers for each token) and {' '}
+                  <a href="https://arxiv.org/pdf/2404.02258.pdf">Mixture-of-Depths Transformer</a> (optionally skipping a layer) are both
                   recent examples of this.
                 </li>
               </ul>
