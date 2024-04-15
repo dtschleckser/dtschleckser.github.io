@@ -57,7 +57,7 @@ function MixtureOfExperts() {
           Parameter count is valuable in LLMs.
           {' '}<a href="https://arxiv.org/pdf/2001.08361.pdf">Neural scaling laws</a>{' '}
           show us that we can significantly improve the performance of an LLM by scaling out, adding more and larger layers.
-          However, it comes at a clear cost. The more parameters you have, the compute you need for both training and inference.
+          However, it comes at a clear cost. The more parameters you have, the more compute you need for both training and inference.
           What if we could keep a significantly greater number of parameters and only use the ones that
           are most relevant to our particular input? This is the observation and motivation behind sparsity in networks.
         </div>
@@ -333,13 +333,44 @@ function MixtureOfExperts() {
   
         <div>
           Mixture of expert architectures are a powerful tool that have gained prominence, particularly in large language models.
-          MoE architectures enable training larger models that are able to leverage sparsity in their computation. Despite larger memory
-          requirements for the model's total parameters
+          MoE architectures enable training larger models that are able to leverage sparsity in their computation.
           <br />
           <br />
           By leveraging sparsely activated experts, MoE models can achieve impressive performance while keeping computation costs
-          manageable compared to dense models of similar total parameter counts. In the near future, I expect to see more large
+          manageable compared to dense models of similar total parameter counts. Despite the cost of keeping their full parameter
+          count in memory, sparsely gated architectures are an effective tool. In the near future, I expect to see more large
           MoE releases and additional tricks to exploit sparsity in large models.
+        </div>
+
+        <Title order={2} style={{ paddingBottom: '1rem', paddingTop: '2rem' }}>
+          Additional notes
+        </Title>
+        <div>
+          <ul>
+            <li>
+              Sparse upcycling (4/15)
+                <ul>
+                  <li>
+                    I've seen discussions about Mixtral being "upcycled" from Mistral 7b. This would involve
+                    initializing the experts with several copies of the dense network's feedforward portions and likely
+                    a newly created routing mechanism. Seems like a pretty good trick to save compute!
+                    I haven't been able to find any formal evidence (e.g. a paper or blog post) of Mixtral doing this, but I have
+                    seen <a href="https://twitter.com/tianle_cai/status/1734188749117153684">talk</a>.
+                  </li>
+                </ul>
+            </li>
+            <li>
+              Additional sparsity tricks (4/15)
+              <ul>
+                <li>
+                  You can do more with sparsity and routing networks than just MoE. {' '}
+                  <a href="https://arxiv.org/pdf/2404.04900.pdf">Radial networks</a> (invoking only a subset of layers for each token) and 
+                  <a href="https://arxiv.org/pdf/2404.02258.pdf">Mixture-of-Depths Transformer (optionally skipping a layer)</a> are both
+                  recent examples of this.
+                </li>
+              </ul>
+            </li>
+          </ul>
         </div>
 
         <Link to='/' style={{ display: 'flex', marginBottom: '1rem', paddingTop: '2rem', alignItems: 'center' }}>
