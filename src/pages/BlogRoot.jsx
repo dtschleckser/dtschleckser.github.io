@@ -19,10 +19,10 @@ function BlogRoot() {
         </ul>
         <div style={{position: 'fixed', left: '5px', bottom: '5px'}}>
             <a href="https://www.linkedin.com/in/daniel-schleckser/" style={{marginRight: '5px'}}>
-                <FaLinkedin size={25}/>
+                <FaLinkedin size={40}/>
             </a>
             <a href="https://www.twitter.com/dtschleckser">
-                <FaTwitter size={25}/>
+                <FaTwitter size={40}/>
             </a>
         </div>
     </div>
